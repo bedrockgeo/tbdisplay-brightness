@@ -2,7 +2,7 @@
 
 Brightness control on Linux for the **Apple Thunderbolt Display** (27 inch, 2011, USB ID `05ac:9227`), for both **GNOME** and **KDE Plasma**.
 
-Desktop brightness sliders only work for laptop panels and monitors that support DDC/CI. The Thunderbolt Display does neither: it takes brightness commands over its built in USB HID interface, so on Linux it normally has no brightness control at all. ddcutil based tools don't work with it either.
+The Thunderbolt Display takes brightness commands over its built in USB HID interface. On GNOME it normally has no brightness control at all. KDE Plasma 6 can set its brightness on its own (over the video cable), but has no switch for the display's ambient light sensor and doesn't show changes the display makes by itself.
 
 Both versions give you:
 
@@ -13,7 +13,7 @@ Both versions give you:
 | Desktop | Folder | What you get | Tested on |
 |---|---|---|---|
 | GNOME 45 to 50 | [`gnome/`](gnome) | Slider in Quick Settings; the arrow beside it holds the auto switch | Ubuntu 26.04, 2018 Mac mini |
-| KDE Plasma 6 | [`kde/`](kde) | Panel or system tray widget; scroll over the icon to change brightness | EndeavourOS, 2017 MacBook Air |
+| KDE Plasma 6 | [`kde/`](kde) | Panel or system tray widget with the auto switch and a slider that tracks the display's real brightness; scroll over the icon to change it | EndeavourOS, 2017 MacBook Air |
 
 Both drive the display through [acdcontrol](https://github.com/johngrimmreaper/acdcontrol).
 
@@ -77,6 +77,13 @@ Open Quick Settings. The slider sits with the built in ones; click the arrow bes
 Upgrading from version 1: the extension ID changed from `tbdisplay-brightness@local`. Remove the old one first with `gnome-extensions uninstall tbdisplay-brightness@local`.
 
 ## Step 3b: KDE Plasma 6
+
+**Do you need it?** Plasma's own Brightness and Color control (the sun icon) can already set this display's brightness. What this widget adds:
+
+* The **Automatic Brightness** switch for the display's light sensor, which Plasma doesn't offer
+* A slider that **reads the display's actual brightness**, so it follows automatic changes. Plasma's slider only shows the last value it set.
+
+If you only want to set brightness by hand, Plasma's sun icon is enough. The two controls work side by side but don't update each other; the widget catches up each time you open it.
 
 Download `tbdisplay-brightness-kde.plasmoid` from [Releases](https://github.com/bedrockgeo/tbdisplay-brightness/releases), then:
 
