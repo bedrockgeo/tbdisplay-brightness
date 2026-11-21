@@ -1,0 +1,7 @@
+{
+  "uuid": "tbdisplay-brightness@local",
+  "name": "Thunderbolt Display Brightness",
+  "description": "Quick Settings brightness slider for the Apple Thunderbolt Display, using acdcontrol over USB HID.",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "version": 3
+}
