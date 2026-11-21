@@ -1,0 +1,21 @@
+{
+    "KPlugin": {
+        "Id": "io.github.bedrockgeo.tbdisplaybrightness",
+        "Name": "Thunderbolt Display Brightness",
+        "Description": "Brightness slider and automatic brightness switch for the Apple Thunderbolt Display (USB ID 05ac:9227), which takes brightness over USB instead of DDC/CI. Requires a patched acdcontrol; see the homepage.",
+        "Icon": "video-display-brightness",
+        "Authors": [
+            {
+                "Name": "David Williamson"
+            }
+        ],
+        "Category": "System Information",
+        "License": "GPL-2.0-or-later",
+        "Version": "1.0",
+        "Website": "https://github.com/bedrockgeo/tbdisplay-brightness"
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-NotificationArea": "true",
+    "X-Plasma-NotificationAreaCategory": "Hardware"
+}
