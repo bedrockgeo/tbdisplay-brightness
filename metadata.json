@@ -1,8 +1,15 @@
 {
   "uuid": "tbdisplay-brightness@bedrockgeo.github.io",
   "name": "Thunderbolt Display Brightness",
-  "description": "Brightness slider in Quick Settings for the Apple Thunderbolt Display (27 inch, 2011, USB ID 05ac:9227), which takes brightness over USB instead of DDC/CI.\n\nRequires the acdcontrol command line tool, built with its 1023 brightness cap removed, plus a udev rule so your user can reach the display. Setup steps are on the homepage.",
-  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "description": "Brightness slider in Quick Settings for the Apple Thunderbolt Display (27 inch, 2011, USB ID 05ac:9227), which takes brightness over USB instead of DDC/CI. The slider's menu has a switch for the display's own automatic brightness.\n\nRequires the acdcontrol command line tool, built with two small patches (brightness range and automatic brightness), plus a udev rule so your user can reach the display. Setup steps are on the homepage.",
+  "shell-version": [
+    "45",
+    "46",
+    "47",
+    "48",
+    "49",
+    "50"
+  ],
   "url": "https://github.com/bedrockgeo/tbdisplay-brightness",
-  "version-name": "2"
+  "version-name": "3"
 }

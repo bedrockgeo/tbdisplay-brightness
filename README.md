@@ -1,6 +1,6 @@
 # Thunderbolt Display Brightness
 
-A GNOME Shell extension that adds a brightness slider to Quick Settings for the **Apple Thunderbolt Display** (27 inch, 2011, USB ID `05ac:9227`).
+A GNOME Shell extension that adds a brightness slider to Quick Settings for the **Apple Thunderbolt Display** (27 inch, 2011, USB ID `05ac:9227`). The arrow beside the slider opens a switch for the display's own automatic brightness, which uses its built in ambient light sensor.
 
 GNOME's own brightness slider only works for laptop panels and monitors that support DDC/CI. The Thunderbolt Display does neither: it takes brightness commands over its built in USB HID interface, so on Linux it normally has no brightness control at all. ddcutil based extensions don't work with it either.
 
@@ -14,19 +14,22 @@ Tested on Ubuntu 26.04 (GNOME 50, Wayland) with a 2018 Mac mini. Declared for GN
 * Finds the display automatically and hides the slider when it isn't connected
 * Rereads the brightness each time the menu opens, so changes made elsewhere show up
 * Only sends the latest slider position while you drag, so it doesn't pile up processes
+* Automatic Brightness switch: the display adjusts itself from its light sensor, and the slider follows it while the menu is open
 
 ## Requirements
 
-### 1. acdcontrol, patched for the full brightness range
+### 1. acdcontrol, with two small patches
 
-Stock acdcontrol caps brightness at 1023, which suits the LED Cinema Display. The Thunderbolt Display's range is 0 to 65535, so with the stock build the brightest you can get is about 1.5%. Remove the cap before building:
+Stock acdcontrol caps brightness at 1023, which suits the LED Cinema Display. The Thunderbolt Display's range is 0 to 65535, so with the stock build the brightest you can get is about 1.5%. Stock acdcontrol also only allows the automatic brightness command on the LED Cinema Display; the second `sed` line enables it for the Thunderbolt Display, which uses the same command. Patch both before building:
 
 ```bash
 sudo apt install build-essential git
 git clone https://github.com/johngrimmreaper/acdcontrol.git
 cd acdcontrol
 sed -i 's/^const int MAX_BRIGHTNESS *= 1023;/const int MAX_BRIGHTNESS = 65535;/' acdcontrol.cpp
+sed -i 's/return vendor == APPLE && product == CINEMA_DISPLAY_27;/return vendor == APPLE \&\& (product == CINEMA_DISPLAY_27 || product == CINEMA_DISPLAY_27_2013);/' acdcontrol.cpp
 grep "MAX_BRIGHTNESS =" acdcontrol.cpp    # should show 65535
+grep "CINEMA_DISPLAY_27_2013);" acdcontrol.cpp    # should show the auto brightness line
 make
 sudo cp acdcontrol /usr/local/bin/
 ```
@@ -84,6 +87,8 @@ Change the product ID in the udev rule to match your display too. Only the Thund
 
 * **No slider:** run `acdcontrol --detect /dev/usb/hiddev*` as your normal user. Permission denied means the udev rule isn't applied.
 * **Slider moves but the screen stays dim:** acdcontrol still has the 1023 cap. Rebuild it with the patch in step 1.
+* **No arrow beside the slider:** acdcontrol lacks the automatic brightness patch. Check with `acdcontrol /dev/usb/hiddevN --auto-brightness status`; it should print `AUTO_BRIGHTNESS=on` or `off`.
+* **Brightness drifts after you set it:** Automatic Brightness is on, and the display keeps adjusting from its light sensor. Turn the switch off for a fixed level.
 * **Logs:** `journalctl -f -o cat /usr/bin/gnome-shell`
 
 ## License
