@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Thunderbolt Display Brightness
-// Adds a brightness slider to GNOME Quick Settings for Apple displays
-// that take brightness over USB HID (Thunderbolt Display, Cinema Displays).
-// Requires the acdcontrol tool and a udev rule giving your user access
-// to the display's /dev/usb/hiddevN node.
+// Adds a brightness slider to GNOME Quick Settings for the Apple
+// Thunderbolt Display, which takes brightness over USB HID instead of DDC/CI.
+// Requires the acdcontrol tool (built without its 1023 cap) and a udev rule
+// giving your user access to the display's /dev/usb/hiddevN node.
 
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
@@ -13,30 +13,39 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {QuickSlider, SystemIndicator} from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
-// The Thunderbolt Display's brightness runs 0 to 65535 (it read 53852 at
-// about 80%). Stock acdcontrol clamps to 1023, so it must be rebuilt with
-// MAX_BRIGHTNESS = 65535 (see README). Older displays use 0 to 255 or
-// 0 to 1023; change MAX_LEVEL to match yours.
+// The Thunderbolt Display's brightness runs 0 to 65535. Older Apple displays
+// use 0 to 255 or 0 to 1023; change MAX_LEVEL to match yours.
 const MAX_LEVEL = 65535;
 // Keep the slider's bottom end from turning the backlight fully off.
 const MIN_LEVEL = 1000;
-
-Gio._promisify(Gio.Subprocess.prototype, 'communicate_utf8_async');
 
 function findTool() {
     return GLib.find_program_in_path('acdcontrol') ?? '/usr/local/bin/acdcontrol';
 }
 
-async function run(argv) {
-    try {
-        const proc = Gio.Subprocess.new(argv,
-            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_MERGE);
-        const [stdout] = await proc.communicate_utf8_async(null, null);
-        return stdout ?? '';
-    } catch (e) {
-        console.error(`tbdisplay-brightness: ${e}`);
-        return '';
-    }
+// Run a command and resolve with its combined output ('' on failure).
+function run(argv, cancellable) {
+    return new Promise(resolve => {
+        let proc;
+        try {
+            proc = Gio.Subprocess.new(argv,
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_MERGE);
+        } catch (e) {
+            console.error(`tbdisplay-brightness: ${e.message}`);
+            resolve('');
+            return;
+        }
+        proc.communicate_utf8_async(null, cancellable, (p, res) => {
+            try {
+                const [, stdout] = p.communicate_utf8_finish(res);
+                resolve(stdout ?? '');
+            } catch (e) {
+                if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                    console.error(`tbdisplay-brightness: ${e.message}`);
+                resolve('');
+            }
+        });
+    });
 }
 
 function listHiddev() {
@@ -51,8 +60,8 @@ function listHiddev() {
                 paths.push(`/dev/usb/${name}`);
         }
         en.close(null);
-    } catch (e) {
-        // /dev/usb missing means no HID devices; nothing to do.
+    } catch {
+        // No /dev/usb means no HID devices; nothing to do.
     }
     return paths.sort();
 }
@@ -75,23 +84,34 @@ class BrightnessSlider extends QuickSlider {
         this._device = null;
         this._busy = false;
         this._pending = null;
-        this._dead = false;
+        this._cancellable = new Gio.Cancellable();
 
         this._sliderId = this.slider.connect('notify::value', () => this._onSliderChanged());
-        this.connect('destroy', () => {
-            this._dead = true;
-        });
 
         // Hidden until a supported display is found.
         this.visible = false;
         this.refresh();
     }
 
+    // Called from disable() before the widget is destroyed.
+    cleanup() {
+        this._cancellable.cancel();
+        this._pending = null;
+        if (this._sliderId) {
+            this.slider.disconnect(this._sliderId);
+            this._sliderId = 0;
+        }
+    }
+
+    get _stopped() {
+        return this._cancellable.is_cancelled();
+    }
+
     async _detect() {
         const paths = listHiddev();
         if (paths.length === 0)
             return null;
-        const out = await run([this._tool, '--detect', ...paths]);
+        const out = await run([this._tool, '--detect', ...paths], this._cancellable);
         for (const line of out.split('\n')) {
             const m = line.match(/^(\/dev\/\S*hiddev\d+):/);
             if (m && /\bSUPPORTED\b/.test(line) && !/NOT\s+SUPPORTED|UNSUPPORTED/i.test(line))
@@ -101,19 +121,19 @@ class BrightnessSlider extends QuickSlider {
     }
 
     async refresh() {
-        if (this._dead)
+        if (this._stopped)
             return;
         if (!this._device)
             this._device = await this._detect();
-        if (this._dead)
+        if (this._stopped)
             return;
         if (!this._device) {
             this.visible = false;
             return;
         }
 
-        const out = await run([this._tool, this._device]);
-        if (this._dead)
+        const out = await run([this._tool, this._device], this._cancellable);
+        if (this._stopped)
             return;
         const m = out.match(/BRIGHTNESS=(\d+)/);
         if (!m) {
@@ -130,7 +150,7 @@ class BrightnessSlider extends QuickSlider {
     }
 
     _onSliderChanged() {
-        if (!this._device)
+        if (!this._device || this._stopped)
             return;
         this._pending = valueToLevel(this.slider.value);
         if (!this._busy)
@@ -141,10 +161,10 @@ class BrightnessSlider extends QuickSlider {
     // so dragging the slider doesn't spawn a pile of processes.
     async _flush() {
         this._busy = true;
-        while (this._pending !== null && !this._dead) {
+        while (this._pending !== null && !this._stopped) {
             const level = this._pending;
             this._pending = null;
-            await run([this._tool, this._device, String(level)]);
+            await run([this._tool, this._device, String(level)], this._cancellable);
         }
         this._busy = false;
     }
@@ -166,7 +186,7 @@ export default class TbDisplayBrightnessExtension extends Extension {
         // Column span 2 makes the slider full width like the built in ones.
         qs.addExternalIndicator(this._indicator, 2);
 
-        // Re-read brightness (and re-detect the display) each time the menu opens.
+        // Reread brightness (and redetect the display) each time the menu opens.
         this._menuId = qs.menu.connect('open-state-changed', (_menu, open) => {
             if (open)
                 this._indicator.slider.refresh();
@@ -174,8 +194,11 @@ export default class TbDisplayBrightnessExtension extends Extension {
     }
 
     disable() {
-        Main.panel.statusArea.quickSettings.menu.disconnect(this._menuId);
-        this._menuId = null;
+        if (this._menuId) {
+            Main.panel.statusArea.quickSettings.menu.disconnect(this._menuId);
+            this._menuId = null;
+        }
+        this._indicator.slider.cleanup();
         this._indicator.quickSettingsItems.forEach(item => item.destroy());
         this._indicator.destroy();
         this._indicator = null;

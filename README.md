@@ -47,24 +47,26 @@ acdcontrol /dev/usb/hiddevN 50000    # N from the detect output
 
 ## Install
 
-From a release zip:
+From the [Releases](https://github.com/bedrockgeo/tbdisplay-brightness/releases) page, download the zip, then:
 
 ```bash
-gnome-extensions install --force tbdisplay-brightness.zip
+gnome-extensions install --force tbdisplay-brightness@bedrockgeo.github.io.shell-extension.zip
 ```
 
 Or from a clone of this repo:
 
 ```bash
-mkdir -p ~/.local/share/gnome-shell/extensions/tbdisplay-brightness@local
-cp metadata.json extension.js ~/.local/share/gnome-shell/extensions/tbdisplay-brightness@local/
+mkdir -p ~/.local/share/gnome-shell/extensions/tbdisplay-brightness@bedrockgeo.github.io
+cp metadata.json extension.js ~/.local/share/gnome-shell/extensions/tbdisplay-brightness@bedrockgeo.github.io/
 ```
 
 Log out and back in (Wayland only loads new extensions at login), then:
 
 ```bash
-gnome-extensions enable tbdisplay-brightness@local
+gnome-extensions enable tbdisplay-brightness@bedrockgeo.github.io
 ```
+
+**Upgrading from version 1:** the extension ID changed from `tbdisplay-brightness@local`. Remove the old one first with `gnome-extensions uninstall tbdisplay-brightness@local`.
 
 ## Other Apple displays
 
